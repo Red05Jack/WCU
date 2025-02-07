@@ -5,7 +5,7 @@
 
 class Window {
 public:
-  Window();
+  Window(const std::string& mainDir, const std::string& fileName);
   ~Window() = default;
 
 
@@ -14,8 +14,9 @@ public:
   bool Open();
   bool Close();
 
-  void SetState(State::STATE state);
-  State::STATE GetState();
+  bool ToogleState();
+  bool OpenState();
+  bool CloseState();
 
 
 private:

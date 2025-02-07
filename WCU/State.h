@@ -6,7 +6,7 @@
 
 class State {
 public:
-  State(std::string path);
+  State(const std::string& mainDir, const std::string& fileName);
   ~State() = default;
 
 
@@ -24,7 +24,8 @@ public:
 
 private:
   // Private Member Variables
-  std::string m_path;
+  std::string m_mainDir;
+  std::string m_fileName;
   std::fstream m_file;
 
 

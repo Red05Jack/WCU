@@ -1,9 +1,10 @@
 #include "Window.h"
 
 
-Window::Window() {
-
-}
+Window::Window(
+  const std::string& mainDir,
+  const std::string& fileName
+) : m_state(State(mainDir, fileName)) {}
 
 
 bool Window::Toogle() {
@@ -49,21 +50,36 @@ bool Window::Close() {
 }
 
 
-void Window::SetState(State::STATE state) {
-  m_state.SetState(state);
+bool Window::ToogleState() {
+  if (m_state.GetState() == State::OPEN) {
+    return m_state.SetState(State::CLOSE);
+  }
+
+  if (m_state.GetState() == State::CLOSE) {
+    return m_state.SetState(State::OPEN);
+  }
+
+  return false;
 }
 
 
-State::STATE Window::GetState() {
-  return m_state.GetState();
+bool Window::OpenState() {
+  return m_state.SetState(State::OPEN);
+}
+
+
+bool Window::CloseState() {
+  return m_state.SetState(State::CLOSE);
 }
 
 
 bool Window::OpenHardware() {
+  // TODO
   return false;
 }
 
 
 bool Window::CloseHardware() {
+  // TODO
   return false;
 }
