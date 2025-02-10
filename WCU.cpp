@@ -33,7 +33,7 @@ Window rightWindow(MOTOR_RIGHT_OPEN, MOTOR_RIGHT_CLOSE, 1, 1000, 1000);
 void SetupInPin(const uint8_t pin) {
     gpio_init(pin);
     gpio_set_dir(pin, GPIO_IN);
-    gpio_pull_up(pin);
+    gpio_pull_down(pin);
 }
 
 
