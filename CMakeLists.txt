@@ -39,6 +39,7 @@ add_executable(WCU
     WCU.cpp
     Window.cpp
     State.cpp
+    GPIO.cpp
 )
 
 pico_set_program_name(WCU "WCU")
@@ -51,8 +52,7 @@ pico_enable_stdio_usb(WCU 0)
 # Add the standard library to the build
 target_link_libraries(WCU
     pico_stdlib
-    hardware_flash
-    hardware_sync
+    pico_multicore
 )
 
 # Add the standard include files to the build

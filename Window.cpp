@@ -1,6 +1,7 @@
 #include "Window.h"
 
 #include "pico/stdlib.h"
+#include "GPIO.h"
 
 
 #define HIGH 1
@@ -93,26 +94,16 @@ bool Window::CloseState() {
 
 
 bool Window::OpenHardware() {
-    gpio_put(m_pinOpen, HIGH);
-    ThreadSafeSleep(m_timeToOpen);
-    gpio_put(m_pinOpen, LOW);
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time(), HIGH));
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time() + m_timeToOpen, LOW));
 
     return true;
 }
   
   
 bool Window::CloseHardware() {
-    gpio_put(m_pinClose, HIGH);
-    ThreadSafeSleep(m_timeToClose);
-    gpio_put(m_pinClose, LOW);
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time(), HIGH));
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time() + m_timeToClose, LOW));
 
     return true;
-}
-
-
-void Window::ThreadSafeSleep(const uint32_t delay /* us */) {
-    absolute_time_t startTime = get_absolute_time();
-    while (absolute_time_diff_us(startTime, get_absolute_time()) < delay) {
-        tight_loop_contents();
-    }
 }

@@ -32,7 +32,5 @@ private:
     bool OpenHardware();
     bool CloseHardware();
 
-    void ThreadSafeSleep(const uint32_t delay /* us */);
-
-
+    
 };
