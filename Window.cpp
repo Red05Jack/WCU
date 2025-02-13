@@ -4,8 +4,8 @@
 #include "GPIO.h"
 
 
-#define HIGH 1
-#define LOW 0
+constexpr bool high = 1;
+constexpr bool low = 0;
 
 
 Window::Window(
@@ -23,11 +23,11 @@ Window::Window(
 {
     gpio_init(m_pinOpen);
     gpio_set_dir(m_pinOpen, GPIO_OUT);
-    gpio_put(m_pinOpen, LOW);
+    gpio_put(m_pinOpen, low);
     
     gpio_init(m_pinClose);
     gpio_set_dir(m_pinClose, GPIO_OUT);
-    gpio_put(m_pinClose, LOW);
+    gpio_put(m_pinClose, low);
 }
 
 
@@ -94,16 +94,16 @@ bool Window::CloseState() {
 
 
 bool Window::OpenHardware() {
-    GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time(), HIGH));
-    GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time() + m_timeToOpen, LOW));
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time(), high));
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time() + m_timeToOpen, low));
 
     return true;
 }
   
   
 bool Window::CloseHardware() {
-    GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time(), HIGH));
-    GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time() + m_timeToClose, LOW));
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time(), high));
+    GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time() + m_timeToClose, low));
 
     return true;
 }

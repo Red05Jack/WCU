@@ -9,7 +9,7 @@ public:
   Window(const uint8_t pinOpen, const uint8_t pinClose, const std::string& path, const uint32_t timeToOpen /* us */, const uint32_t timeToClose /* us */);
   ~Window() = default;
 
-    
+
   // Public Member Methods
   bool Toogle();
   bool Open();
@@ -33,5 +33,5 @@ private:
   bool OpenHardware();
   bool CloseHardware();
 
-    
+
 };

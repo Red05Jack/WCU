@@ -3,10 +3,6 @@
 #include "pico/stdlib.h"
 
 
-#define HIGH 1
-#define LOW 0
-
-
 GPIO* GPIO::m_instance = nullptr;
 std::vector<Pin> GPIO::m_queue;
 critical_section_t GPIO::m_criticalSection;

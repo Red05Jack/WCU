@@ -5,24 +5,25 @@
 #include "pico/multicore.h"
 
 
-#define LED 25
+constexpr uint8_t led = 25;
 
-#define LOCK 8
-#define BUTTON_LEFT_FRONT 7
-#define BUTTON_RIGHT_FRONT 6
-#define BUTTON_LEFT_REAR 5
-#define BUTTON_RIGHT_REAR 4
+constexpr uint8_t buttonLock = 8;
 
-#define MOTOR_LEFT_OPEN 3
-#define MOTOR_LEFT_CLOSE 2
-#define MOTOR_RIGHT_OPEN 1
-#define MOTOR_RIGHT_CLOSE 0
+constexpr uint8_t buttonLeftFront = 7;
+constexpr uint8_t buttonRightFront = 6;
+constexpr uint8_t buttonLeftRear = 5;
+constexpr uint8_t buttonRightRear = 4;
 
-#define BUTTON_LEFT 9
-#define BUTTON_RIGHT 10
+constexpr uint8_t motorLeftOpen = 3;
+constexpr uint8_t motorLeftClose = 2;
+constexpr uint8_t motorRightOpen = 1;
+constexpr uint8_t motorRightClose = 0;
 
-#define TIME_BETWEN_INTERRUPT 1750000
-#define TIME_BETWEN_STATE_INTERRUPT 500000
+constexpr uint8_t buttonLeft = 9;
+constexpr uint8_t buttonRight = 10;
+
+constexpr uint64_t timeBetwenInterrupt = 1750000;
+constexpr uint64_t timeBetwenStateInterrupt = 500000;
 
 
 void SetupInPin(const uint8_t pin) {
@@ -33,7 +34,7 @@ void SetupInPin(const uint8_t pin) {
 
 
 void CallbackButtonFront(Window& window, absolute_time_t& timeLastInterrup) {
-  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > TIME_BETWEN_INTERRUPT) {
+  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > timeBetwenInterrupt) {
     timeLastInterrup = get_absolute_time();
     window.Toogle();
   }
@@ -41,8 +42,8 @@ void CallbackButtonFront(Window& window, absolute_time_t& timeLastInterrup) {
 
 
 void CallbackButtonRear(Window& window, absolute_time_t& timeLastInterrup) {
-  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > TIME_BETWEN_INTERRUPT) {
-    if (!gpio_get(LOCK)) {
+  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > timeBetwenInterrupt) {
+    if (!gpio_get(buttonLock)) {
       timeLastInterrup = get_absolute_time();
       window.Toogle();
     }
@@ -51,7 +52,7 @@ void CallbackButtonRear(Window& window, absolute_time_t& timeLastInterrup) {
 
 
 void CallbackButton(Window& window, absolute_time_t& timeLastInterrup) {
-  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > TIME_BETWEN_STATE_INTERRUPT) {
+  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > timeBetwenStateInterrupt) {
     timeLastInterrup = get_absolute_time();
     window.ToogleState();
   }
@@ -62,8 +63,8 @@ int main() {
   GPIO::MakeInstance();
   multicore_launch_core1(GPIO::Worker);
 
-  Window leftWindow(MOTOR_LEFT_OPEN, MOTOR_LEFT_CLOSE, "/leftWindow.txt", 1500000, 1500000);
-  Window rightWindow(MOTOR_RIGHT_OPEN, MOTOR_RIGHT_CLOSE, "/rightWindow.txt", 1500000, 1500000);
+  Window leftWindow(motorLeftOpen, motorLeftClose, "/leftWindow.txt", 1500000, 1500000);
+  Window rightWindow(motorRightOpen, motorRightClose, "/rightWindow.txt", 1500000, 1500000);
 
   absolute_time_t timeLastInterruptLeft = 0;
   absolute_time_t timeLastInterruptRight = 0;
@@ -71,37 +72,37 @@ int main() {
   absolute_time_t timeLastStateInterruptLeft = 0;
   absolute_time_t timeLastStateInterruptRight = 0;
 
-  SetupInPin(LOCK);
-  SetupInPin(BUTTON_LEFT_FRONT);
-  SetupInPin(BUTTON_RIGHT_FRONT);
-  SetupInPin(BUTTON_LEFT_REAR);
-  SetupInPin(BUTTON_RIGHT_REAR);
+  SetupInPin(buttonLock);
+  SetupInPin(buttonLeftFront);
+  SetupInPin(buttonRightFront);
+  SetupInPin(buttonLeftRear);
+  SetupInPin(buttonRightRear);
 
-  SetupInPin(BUTTON_LEFT);
-  SetupInPin(BUTTON_RIGHT);
+  SetupInPin(buttonLeft);
+  SetupInPin(buttonRight);
 
   while (true) {
-    if (gpio_get(BUTTON_LEFT_FRONT)) {
+    if (gpio_get(buttonLeftFront)) {
       CallbackButtonFront(leftWindow, timeLastInterruptLeft);
     }
 
-    if (gpio_get(BUTTON_RIGHT_FRONT)) {
+    if (gpio_get(buttonRightFront)) {
       CallbackButtonFront(rightWindow, timeLastInterruptRight);
     }
 
-    if (gpio_get(BUTTON_LEFT_REAR)) {
+    if (gpio_get(buttonLeftRear)) {
       CallbackButtonRear(leftWindow, timeLastInterruptLeft);
     }
 
-    if (gpio_get(BUTTON_RIGHT_REAR)) {
+    if (gpio_get(buttonRightRear)) {
       CallbackButtonRear(rightWindow, timeLastInterruptRight);
     }
 
-    if (gpio_get(BUTTON_LEFT)) {
+    if (gpio_get(buttonLeft)) {
       CallbackButton(leftWindow, timeLastStateInterruptLeft);
     }
 
-    if (gpio_get(BUTTON_RIGHT)) {
+    if (gpio_get(buttonRight)) {
       CallbackButton(rightWindow, timeLastStateInterruptRight);
     }
   }
