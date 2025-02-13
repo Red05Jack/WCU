@@ -1,34 +1,30 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 
 class State {
 public:
-    State(uint32_t id);
-    ~State() = default;
+  State(const std::string& path);
+  ~State() = default;
 
 
-    // Public Member Enums
-    enum STATE {
-        OPEN = 1,
-        CLOSE = 0
-    };
+  // Public Member Enums
+  enum STATE {
+    OPEN = 1,
+    CLOSE = 0
+  };
 
 
-    // Public Member Methods
-    STATE GetState();
-    bool SetState(STATE state);
+  // Public Member Methods
+  STATE GetState();
+  bool SetState(STATE state);
 
 
 private:
-    // Private Member Variables
-    uint32_t m_id;
-
-
-    // Private Member Methods
-    uint32_t GetFlashAddress() const;
-    uint32_t FindLastValidEntry() const;
+  // Private Member Variables
+  STATE m_state;
 
 
 };

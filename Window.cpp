@@ -11,7 +11,7 @@
 Window::Window(
     const uint8_t pinOpen,
     const uint8_t pinClose,
-    const uint32_t path,
+    const std::string& path,
     const uint32_t timeToOpen,
     const uint32_t timeToClose
 ) :
