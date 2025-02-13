@@ -40,6 +40,7 @@ add_executable(WCU
     Window.cpp
     State.cpp
     GPIO.cpp
+    WS2812.cpp
 )
 
 pico_set_program_name(WCU "WCU")
@@ -53,6 +54,7 @@ pico_enable_stdio_usb(WCU 0)
 target_link_libraries(WCU
     pico_stdlib
     pico_multicore
+    hardware_pio
 )
 
 # Add the standard include files to the build
@@ -61,4 +63,4 @@ target_include_directories(WCU PRIVATE
 )
 
 pico_add_extra_outputs(WCU)
-
+pico_generate_pio_header(WCU ${CMAKE_CURRENT_LIST_DIR}/WS2812.pio)

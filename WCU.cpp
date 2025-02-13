@@ -1,11 +1,12 @@
 #include "Window.h"
 #include "GPIO.h"
+#include "WS2812.hpp"
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 
 
-constexpr uint8_t led = 25;
+constexpr uint8_t ledPin = 25;
 
 constexpr uint8_t buttonLock = 8;
 
@@ -80,6 +81,10 @@ int main() {
 
   SetupInPin(buttonLeft);
   SetupInPin(buttonRight);
+
+  WS2812 led(ledPin, 1, pio0, 0, WS2812::FORMAT_GRB);
+  led.fill(WS2812::RGB(1, 1, 1));
+  led.show();
 
   while (true) {
     if (gpio_get(buttonLeftFront)) {
