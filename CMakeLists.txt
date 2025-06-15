@@ -30,6 +30,8 @@ include(pico_sdk_import.cmake)
 
 project(WCU C CXX ASM)
 
+set(PICO_CUSTOM_LINKER_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/custom_flash.ld)
+
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
@@ -41,6 +43,8 @@ add_executable(WCU
     State.cpp
     GPIO.cpp
     WS2812.cpp
+    lfs.c
+    lfs_util.c
 )
 
 pico_set_program_name(WCU "WCU")
@@ -55,6 +59,8 @@ target_link_libraries(WCU
     pico_stdlib
     pico_multicore
     hardware_pio
+    hardware_flash
+    hardware_sync
 )
 
 # Add the standard include files to the build

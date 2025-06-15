@@ -3,28 +3,23 @@
 #include <cstdint>
 #include <string>
 
-
 class State {
 public:
-  State(const std::string& path);
-  ~State() = default;
+    enum STATE {
+        CLOSE = 0,
+        OPEN = 1
+    };
 
+    State(const std::string& path = "/state.dat");
+    ~State() = default;
 
-  // Public Member Enums
-  enum STATE {
-    OPEN = 1,
-    CLOSE = 0
-  };
-
-
-  // Public Member Methods
-  STATE GetState();
-  bool SetState(STATE state);
-
+    STATE GetState() const;
+    bool SetState(STATE state);
 
 private:
-  // Private Member Variables
-  STATE m_state;
+    STATE m_state;
+    std::string m_path;
 
-
+    void load();
+    void save();
 };

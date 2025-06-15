@@ -64,8 +64,11 @@ int main() {
   GPIO::MakeInstance();
   multicore_launch_core1(GPIO::Worker);
 
-  Window leftWindow(motorLeftOpen, motorLeftClose, "/leftWindow.txt", 1500000, 1500000);
-  Window rightWindow(motorRightOpen, motorRightClose, "/rightWindow.txt", 1500000, 1500000);
+  Window leftWindow(motorLeftOpen, motorLeftClose, "/leftWindow.dat", 1500000, 1500000);
+  Window rightWindow(motorRightOpen, motorRightClose, "/rightWindow.dat", 1500000, 1500000);
+
+  GPIO::GetInstance().AddPinToQueue(Pin(motorLeftOpen, get_absolute_time(), 1));
+  GPIO::GetInstance().AddPinToQueue(Pin(motorLeftOpen, get_absolute_time() + 3000000, 1));
 
   absolute_time_t timeLastInterruptLeft = 0;
   absolute_time_t timeLastInterruptRight = 0;
@@ -82,9 +85,13 @@ int main() {
   SetupInPin(buttonLeft);
   SetupInPin(buttonRight);
 
-  WS2812 led(ledPin, 1, pio0, 0, WS2812::FORMAT_GRB);
-  led.fill(WS2812::RGB(1, 1, 1));
-  led.show();
+  //WS2812 led(ledPin, 1, pio0, 0, WS2812::FORMAT_GRB);
+  //led.fill(WS2812::RGB(1, 1, 1));
+  //led.show();
+  
+  gpio_init(ledPin);
+  gpio_set_dir(ledPin, GPIO_OUT);
+  gpio_put(ledPin, 1);
 
   while (true) {
     if (gpio_get(buttonLeftFront)) {
