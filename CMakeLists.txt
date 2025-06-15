@@ -30,8 +30,6 @@ include(pico_sdk_import.cmake)
 
 project(WCU C CXX ASM)
 
-set(PICO_CUSTOM_LINKER_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/custom_flash.ld)
-
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 

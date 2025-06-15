@@ -1,121 +1,72 @@
-#include "Window.h"
-#include "GPIO.h"
-#include "WS2812.hpp"
-
 #include "pico/stdlib.h"
-#include "pico/multicore.h"
+#include "hardware/flash.h"
+#include "hardware/sync.h"
+#include <string.h>
+#include <stdio.h>
 
+// === Flash-Konfiguration ===
+#define FLASH_PAGE_SIZE     256
+#define FLASH_SECTOR_SIZE   4096
+#define FLASH_TOTAL_SIZE    (2 * 1024 * 1024) // 2 MB Flash
+#define FLASH_TARGET_OFFSET (FLASH_TOTAL_SIZE - FLASH_SECTOR_SIZE)
 
-constexpr uint8_t ledPin = 25;
+#define LED_PIN 25
 
-constexpr uint8_t buttonLock = 8;
+// === Speichere ein Byte im Flash (nur erste Position der Seite) ===
+void write_flag_to_flash(uint8_t value) {
+    // 256-Byte-Seite vorbereiten
+    uint8_t page[FLASH_PAGE_SIZE];
+    memset(page, 0xFF, sizeof(page));  // Flash ist standardmäßig 0xFF (gelöscht)
+    page[0] = value;                   // nur das erste Byte nutzen
 
-constexpr uint8_t buttonLeftFront = 7;
-constexpr uint8_t buttonRightFront = 6;
-constexpr uint8_t buttonLeftRear = 5;
-constexpr uint8_t buttonRightRear = 4;
+    uint32_t ints = save_and_disable_interrupts();
 
-constexpr uint8_t motorLeftOpen = 3;
-constexpr uint8_t motorLeftClose = 2;
-constexpr uint8_t motorRightOpen = 1;
-constexpr uint8_t motorRightClose = 0;
+    // Flash löschen (ein kompletter Sektor = 4096 Bytes)
+    flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
 
-constexpr uint8_t buttonLeft = 9;
-constexpr uint8_t buttonRight = 10;
+    // Erste Seite (256 Bytes) neu schreiben
+    flash_range_program(FLASH_TARGET_OFFSET, page, FLASH_PAGE_SIZE);
 
-constexpr uint64_t timeBetwenInterrupt = 1750000;
-constexpr uint64_t timeBetwenStateInterrupt = 500000;
-
-
-void SetupInPin(const uint8_t pin) {
-  gpio_init(pin);
-  gpio_set_dir(pin, GPIO_IN);
-  gpio_pull_down(pin);
+    restore_interrupts(ints);
 }
 
-
-void CallbackButtonFront(Window& window, absolute_time_t& timeLastInterrup) {
-  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > timeBetwenInterrupt) {
-    timeLastInterrup = get_absolute_time();
-    window.Toogle();
-  }
+// === Wert aus Flash auslesen ===
+uint8_t read_flag_from_flash() {
+    const uint8_t* flash_ptr = (const uint8_t*)(XIP_BASE + FLASH_TARGET_OFFSET);
+    return flash_ptr[0]; // nur das erste Byte nutzen
 }
-
-
-void CallbackButtonRear(Window& window, absolute_time_t& timeLastInterrup) {
-  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > timeBetwenInterrupt) {
-    if (!gpio_get(buttonLock)) {
-      timeLastInterrup = get_absolute_time();
-      window.Toogle();
-    }
-  }
-}
-
-
-void CallbackButton(Window& window, absolute_time_t& timeLastInterrup) {
-  if (absolute_time_diff_us(timeLastInterrup, get_absolute_time()) > timeBetwenStateInterrupt) {
-    timeLastInterrup = get_absolute_time();
-    window.ToogleState();
-  }
-}
-
 
 int main() {
-  GPIO::MakeInstance();
-  multicore_launch_core1(GPIO::Worker);
+    stdio_init_all();
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
 
-  Window leftWindow(motorLeftOpen, motorLeftClose, "/leftWindow.dat", 1500000, 1500000);
-  Window rightWindow(motorRightOpen, motorRightClose, "/rightWindow.dat", 1500000, 1500000);
+    sleep_ms(500);  // Wartezeit bei Start für USB/Debug
 
-  GPIO::GetInstance().AddPinToQueue(Pin(motorLeftOpen, get_absolute_time(), 1));
-  GPIO::GetInstance().AddPinToQueue(Pin(motorLeftOpen, get_absolute_time() + 3000000, 1));
+    // 1. Status lesen
+    uint8_t state = read_flag_from_flash();
+    printf("Flash-Flag: %d\n", state);
 
-  absolute_time_t timeLastInterruptLeft = 0;
-  absolute_time_t timeLastInterruptRight = 0;
-
-  absolute_time_t timeLastStateInterruptLeft = 0;
-  absolute_time_t timeLastStateInterruptRight = 0;
-
-  SetupInPin(buttonLock);
-  SetupInPin(buttonLeftFront);
-  SetupInPin(buttonRightFront);
-  SetupInPin(buttonLeftRear);
-  SetupInPin(buttonRightRear);
-
-  SetupInPin(buttonLeft);
-  SetupInPin(buttonRight);
-
-  //WS2812 led(ledPin, 1, pio0, 0, WS2812::FORMAT_GRB);
-  //led.fill(WS2812::RGB(1, 1, 1));
-  //led.show();
-  
-  gpio_init(ledPin);
-  gpio_set_dir(ledPin, GPIO_OUT);
-  gpio_put(ledPin, 1);
-
-  while (true) {
-    if (gpio_get(buttonLeftFront)) {
-      CallbackButtonFront(leftWindow, timeLastInterruptLeft);
+    // 2. LED setzen basierend auf Status
+    if (state == 1) {
+        gpio_put(LED_PIN, 1);
+    } else {
+        gpio_put(LED_PIN, 0);
     }
 
-    if (gpio_get(buttonRightFront)) {
-      CallbackButtonFront(rightWindow, timeLastInterruptRight);
+    // 3. Status invertieren und zurück in Flash schreiben
+    uint8_t new_state = (state == 1) ? 0 : 1;
+    write_flag_to_flash(new_state);
+
+  sleep_ms(5000);
+
+    // 4. Dauerhaft warten (LED-Zustand bleibt sichtbar)
+    while (true) {
+         gpio_put(25, 1);
+        sleep_ms(500);
+        gpio_put(25, 0);
+        sleep_ms(500);
     }
 
-    if (gpio_get(buttonLeftRear)) {
-      CallbackButtonRear(leftWindow, timeLastInterruptLeft);
-    }
-
-    if (gpio_get(buttonRightRear)) {
-      CallbackButtonRear(rightWindow, timeLastInterruptRight);
-    }
-
-    if (gpio_get(buttonLeft)) {
-      CallbackButton(leftWindow, timeLastStateInterruptLeft);
-    }
-
-    if (gpio_get(buttonRight)) {
-      CallbackButton(rightWindow, timeLastStateInterruptRight);
-    }
-  }
+    return 0;
 }
