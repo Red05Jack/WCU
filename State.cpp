@@ -40,15 +40,16 @@ State& State::GetInstance() {
 }
 
 
-// Return 0 - New State are successfully saved in flash
-// Return 1 - Position too high
-uint8_t State::SetState(const uint8_t value, const uint8_t position) {
+// Return true  - New State are successfully saved in flash
+// Return false - Position too high
+bool State::SetState(const uint8_t value, const uint8_t position) {
 	if (position > 247) {
-		return 1;
+		return false;
 	}
 
 	m_states[position] = value;
 	SaveStates();
+	return true;
 }
 
 
