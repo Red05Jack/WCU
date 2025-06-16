@@ -1,5 +1,6 @@
 #include "Window.h"
 #include "GPIO.h"
+#include "State.h"
 #include "WS2812.hpp"
 
 #include "pico/stdlib.h"
@@ -62,6 +63,7 @@ void CallbackButton(Window& window, absolute_time_t& timeLastInterrup) {
 
 int main() {
 	GPIO::MakeInstance();
+	State::MakeInstance();
 	multicore_launch_core1(GPIO::Worker);
 
 	Window leftWindow(motorLeftOpen, motorLeftClose, 0, 1500000, 1500000);
