@@ -43,7 +43,7 @@ State& State::GetInstance() {
 // Return true  - New State are successfully saved in flash
 // Return false - Position too high
 bool State::SetState(const uint8_t value, const uint8_t position) {
-	if (position > 247) {
+	if (position > FLASH_PAGE_SIZE - 1) {
 		return false;
 	}
 
