@@ -58,7 +58,6 @@ uint8_t State::GetState(const uint8_t position) const {
 }
 
 
-
 void State::SaveStates() {
 	WriteToFlash(m_states);
 }
