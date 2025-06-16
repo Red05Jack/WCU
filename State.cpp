@@ -12,6 +12,7 @@
 
 
 State* State::m_instance = nullptr;
+uint8_t State::m_states[FLASH_PAGE_SIZE] = {0};
 
 
 void WriteToFlash(const uint8_t* page) {
