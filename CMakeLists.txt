@@ -33,20 +33,18 @@ project(WCU C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add executable. Default name is the project name, version 0.1
-
+# Add executable.
 add_executable(WCU
     WCU.cpp
     Window.cpp
     State.cpp
     GPIO.cpp
     WS2812.cpp
-    lfs.c
-    lfs_util.c
 )
 
+# Name and Version
 pico_set_program_name(WCU "WCU")
-pico_set_program_version(WCU "0.1")
+pico_set_program_version(WCU "1.1.0")
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(WCU 0)
@@ -63,7 +61,7 @@ target_link_libraries(WCU
 
 # Add the standard include files to the build
 target_include_directories(WCU PRIVATE
-        ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}
 )
 
 pico_add_extra_outputs(WCU)
