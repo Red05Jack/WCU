@@ -16,7 +16,7 @@ public:
 	static void MakeInstance();
 	static State& GetInstance();
 
-	uint8_t SetState(const uint8_t value, const uint8_t position);
+	bool SetState(const uint8_t value, const uint8_t position);
 	uint8_t GetState(const uint8_t position) const;
 
 
