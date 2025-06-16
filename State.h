@@ -1,25 +1,39 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
+
+
+#define FLASH_PAGE_SIZE     256
+#define CONTROLE_BYTES_SIZE 8
+
 
 class State {
 public:
-    enum STATE {
-        CLOSE = 0,
-        OPEN = 1
-    };
+	State(const State& obj) = delete;
 
-    State(const std::string& path = "/state.dat");
-    ~State() = default;
 
-    STATE GetState() const;
-    bool SetState(STATE state);
+	// Public Member Methods
+	static void MakeInstance();
+	static State& GetInstance();
+
+	uint8_t SetState(const uint8_t value, const uint8_t position);
+	uint8_t GetState(const uint8_t position) const;
+
 
 private:
-    STATE m_state;
-    std::string m_path;
+	State();
+	~State();
 
-    void load();
-    void save();
+
+	// Private Member Methods
+	void SaveStates();
+	void LoadStates();
+
+
+	// Private Member Variables
+	static State* m_instance;
+	static uint8_t m_states[FLASH_PAGE_SIZE];
+	uint8_t m_controlBytes[CONTROLE_BYTES_SIZE] = { 1,0,0,1,1,0,0,1 };
+
+
 };
