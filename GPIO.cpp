@@ -20,7 +20,9 @@ GPIO& GPIO::GetInstance() {
   return *m_instance;
 }
 
-
+// TODO
+// Eine weiterer parameter der mit übergeben wird, ein Funktion Pointer der übergeben werden kann, und so lange Funktion True ausgebit bleib der pin an und sobald die Funktion False ausgibt wird der pin wieder deaktiviert.
+// Hauptanwednung um die fensterheb schalter richtig auswerten zu können.
 void GPIO::AddPinToQueue(const Pin& pin) {
   critical_section_enter_blocking(&m_criticalSection);
   m_queue.push_back(pin);
