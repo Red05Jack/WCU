@@ -89,6 +89,9 @@ int main() {
 	led.show();
 
 	while (true) {
+    // TODO
+    // Zyklus delay so das die schleife zb alle 50ms gestartet wird, also so das wenn die zeit zum laufen der schleife 10ms waren das dann 40ms gewartet wird.
+
 		if (gpio_get(buttonLeftFront)) {
 			CallbackButtonFront(leftWindow, timeLastInterruptLeft);
 		}
