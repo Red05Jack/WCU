@@ -5,11 +5,12 @@
 
 
 struct Pin {
-  Pin(const uint8_t pin, const uint64_t delay, const bool state) : m_pin(pin), m_delay(delay), m_state(state) {}
+  Pin(const uint8_t pin, const uint64_t delay, const bool state, bool (*callback)()) : m_pin(pin), m_delay(delay), m_state(state), m_callback(callback) {}
 
   uint8_t m_pin;
   uint64_t m_delay;
   bool m_state;
+  bool (*m_callback)();
 };
 
 

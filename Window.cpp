@@ -91,16 +91,16 @@ bool Window::CloseState() {
 
 
 bool Window::OpenHardware() {
-	GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time(), high));
-	GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time() + m_timeToOpen, low));
+	GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time(), high, nullptr));
+	GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time() + m_timeToOpen, low, nullptr));
 
 	return true;
 }
 
 
 bool Window::CloseHardware() {
-	GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time(), high));
-	GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time() + m_timeToClose, low));
+	GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time(), high, nullptr));
+	GPIO::GetInstance().AddPinToQueue(Pin(m_pinClose, get_absolute_time() + m_timeToClose, low, nullptr));
 
 	return true;
 }
