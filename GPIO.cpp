@@ -29,7 +29,8 @@ void GPIO::AddPinToQueue(const Pin& pin) {
 
 
 void GPIO::Worker() {
-  bool callback = true;
+  bool functionInterrupt = true;
+  bool timeInterrupt = true;
 
   while (true) {
     critical_section_enter_blocking(&m_criticalSection);
@@ -38,13 +39,10 @@ void GPIO::Worker() {
             
       auto it = m_queue.begin();
       while (it != m_queue.end()) {
-        if (it->m_callback != nullptr) {
-          callback = it->m_callback();
-        } else {
-          callback = true;
-        }
+        functionInterrupt = (it->m_function == nullptr) || it->m_function();
+        timeInterrupt = (it->m_delay != 0) && (currentTime >= it->m_delay);
 
-        if (callback == false || currentTime >= it->m_delay) {
+        if (!functionInterrupt || timeInterrupt) {
           gpio_put(it->m_pin, it->m_state);
           it = m_queue.erase(it);
         } else {
