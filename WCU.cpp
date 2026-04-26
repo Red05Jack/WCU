@@ -116,4 +116,23 @@ int main() {
 			CallbackButton(rightWindow, timeLastStateInterruptRight);
 		}
 	}
+
+/*
+	GPIO::GetInstance().AddPinToQueue(Pin(m_pinOpen, get_absolute_time(), high, nullptr));
+
+	GPIO::GetInstance().Pin()
+
+	
+
+
+
+	auto func = []() -> bool {
+  		if (gpio_get(1)) { return false; }
+  		if (gpio_get(2)) { return false; }
+  		if (gpio_get(3)) { return false; }
+		return true;
+	};
+
+	GPIO::GetInstance().AddPinToQueue(Pin(0, get_absolute_time(), true, func));
+*/
 }

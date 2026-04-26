@@ -13,7 +13,17 @@
 //          If provided, the state change is executed as soon as the function returns false.
 //          If nullptr, only the time condition is evaluated.
 struct Pin {
-  Pin(const uint8_t pin, const uint64_t delay, const bool state, bool (*function)()) : m_pin(pin), m_delay(delay), m_state(state), m_function(function) {}
+  Pin(
+    const uint8_t pin,
+    const uint64_t delay,
+    const bool state,
+    bool (*function)()
+  ) :
+    m_pin(pin),
+    m_delay(delay),
+    m_state(state),
+    m_function(function)
+  {}
 
   uint8_t m_pin;
   uint64_t m_delay;
