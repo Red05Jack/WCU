@@ -1,7 +1,10 @@
 #pragma once
 
 #include <vector>
-#include "pico/sync.h"
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "esp_timer.h"
 
 
 // Pin      GPIO pin number that will be affected.
@@ -42,7 +45,7 @@ public:
   static GPIO& GetInstance();
 
   void AddPinToQueue(const Pin& pin);
-  static void Worker();
+  static void Worker(void* arg); // FreeRTOS task
 
 
 private:
@@ -53,7 +56,7 @@ private:
   // Private Member Variables
   static GPIO* m_instance;
   static std::vector<Pin> m_queue;
-  static critical_section_t m_criticalSection;
+  static SemaphoreHandle_t m_mutex;
 
 
 };

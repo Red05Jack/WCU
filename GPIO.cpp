@@ -2,10 +2,9 @@
 
 #include "pico/stdlib.h"
 
-
 GPIO* GPIO::m_instance = nullptr;
 std::vector<Pin> GPIO::m_queue;
-critical_section_t GPIO::m_criticalSection;
+SemaphoreHandle_t GPIO::m_mutex = nullptr;
 
 
 void GPIO::MakeInstance() {
@@ -22,48 +21,52 @@ GPIO& GPIO::GetInstance() {
 
 
 void GPIO::AddPinToQueue(const Pin& pin) {
-  critical_section_enter_blocking(&m_criticalSection);
+  xSemaphoreTake(m_mutex, portMAX_DELAY);
   m_queue.push_back(pin);
-  critical_section_exit(&m_criticalSection);
+  xSemaphoreGive(m_mutex);
 }
 
 
-void GPIO::Worker() {
-  bool functionInterrupt = true;
-  bool timeInterrupt = true;
-
+void GPIO::Worker(void* arg) {
   while (true) {
-    critical_section_enter_blocking(&m_criticalSection);
+    xSemaphoreTake(m_mutex, portMAX_DELAY);
+
     if (!m_queue.empty()) {
-      absolute_time_t currentTime = get_absolute_time();
-            
+      int64_t currentTime = esp_timer_get_time();
+
       auto it = m_queue.begin();
+
       while (it != m_queue.end()) {
-        functionInterrupt = (it->m_function == nullptr) || it->m_function();
-        timeInterrupt = (it->m_delay != 0) && (currentTime >= it->m_delay);
+        bool functionInterrupt = (it->m_function == nullptr) || it->m_function();
+        bool timeInterrupt = (it->m_delay != 0) && (currentTime >= it->m_delay);
 
         if (!functionInterrupt || timeInterrupt) {
-          gpio_put(it->m_pin, it->m_state);
+          gpio_set_level((gpio_num_t)it->m_pin, it->m_state);
           it = m_queue.erase(it);
         } else {
           ++it;
         }
       }
     }
-    critical_section_exit(&m_criticalSection);
+
+    xSemaphoreGive(m_mutex);
+    vTaskDelay(pdMS_TO_TICKS(1)); // wichtig! sonst 100% CPU
   }
 }
 
 
 GPIO::GPIO() {
-  critical_section_init(&m_criticalSection);
+  m_mutex = xSemaphoreCreateMutex();
 }
 
 
 GPIO::~GPIO() {
+  if (m_mutex) {
+    vSemaphoreDelete(m_mutex);
+  }
+
   if (m_instance != nullptr) {
     delete m_instance;
     m_instance = nullptr;
   }
-  critical_section_deinit(&m_criticalSection);
 }
