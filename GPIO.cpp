@@ -1,6 +1,5 @@
 #include "GPIO.h"
 
-#include "pico/stdlib.h"
 
 GPIO* GPIO::m_instance = nullptr;
 std::vector<Pin> GPIO::m_queue;
