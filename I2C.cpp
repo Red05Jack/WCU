@@ -1,4 +1,4 @@
-#include "I2CMaster.h"
+#include "I2C.h"
 
 
 I2CMaster::I2CMaster(i2c_port_t port) : m_port(port) {
