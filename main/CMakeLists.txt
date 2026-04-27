@@ -1,7 +1,9 @@
 idf_component_register(
-  SRCS "WCU.cpp"
+  SRCS
+    "WCU.cpp"
   INCLUDE_DIRS "."
-  REQUIRES core
+  REQUIRES
+    ghosttown_gpio
+    ghosttown_i2c
+    ghosttown_spi
 )
-
-target_compile_options(${COMPONENT_LIB} PRIVATE -std=gnu++20)

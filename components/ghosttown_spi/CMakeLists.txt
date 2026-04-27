@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS
-      "GPIO.cpp"
-      "I2C.cpp"
       "SPI.cpp"
     INCLUDE_DIRS "."
+    REQUIRES
+      esp_driver_spi
 )
