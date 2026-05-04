@@ -3,7 +3,5 @@ idf_component_register(
     "WCU.cpp"
   INCLUDE_DIRS "."
   REQUIRES
-    ghosttown_gpio
-    ghosttown_i2c
-    ghosttown_spi
+    ghosttown_mcp2515
 )
