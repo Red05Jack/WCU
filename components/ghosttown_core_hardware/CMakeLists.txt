@@ -1,0 +1,18 @@
+idf_component_register(
+  SRCS
+    "GPIO.cpp"
+    "ADC.cpp"
+    "I2C.cpp"
+    "SPI.cpp"
+
+  INCLUDE_DIRS
+    "include"
+
+  REQUIRES
+    esp_driver_gpio
+    esp_driver_i2c
+    esp_driver_spi
+    esp_adc
+    esp_timer
+    freertos
+)
