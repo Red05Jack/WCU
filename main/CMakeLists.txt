@@ -4,4 +4,5 @@ idf_component_register(
   INCLUDE_DIRS "."
   REQUIRES
     ghosttown_mcp2515
+    ghosttown_mcp23017
 )
