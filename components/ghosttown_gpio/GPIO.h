@@ -34,6 +34,61 @@ struct Pin {
   bool (*m_function)();
 };
 
+constexpr bool in 0;
+constexpr bool out 1;
+
+constexpr int8_t pullDown -1;
+constexpr int8_t noPullResistor 0;
+constexpr int8_t pullUp 1;
+
+constexpr bool noInterrupts 0;
+constexpr bool interrupts 1;
+
+
+class GPIO {
+public:
+  GPIO();
+  GPIO(uint8_t pin, bool mode, int8_t pullResistor, bool interrupts);
+  ~GPIO();
+
+
+  // Public Member Methods
+  bool SetPin(uint8_t pin);
+  bool SetMode(bool mode);
+  bool SetPullResistor(int8_t pullResistor);
+  bool SetInterrupts(bool interrupts);
+
+  bool Set(); // High Low
+  bool Set(); // High Low + Time
+  bool Set(); // High Low + Func
+  bool Set(); // High Low + Func + Time
+
+  int16_t Get();
+  bool Get(); // Func + State
+
+  bool ClearQueueEntries(); // Alle von dem Object
+  bool ClearAllQueueEntries(); // Alle Alle
+
+
+protected:
+  // Static Protected Member Variables
+  static std::vector<> m_queue;
+
+
+  // Static Protected Member Methods
+  static void Worker();
+  
+  
+  // Protected Member Variables
+  gpio_config_t m_config;
+
+  
+  // Protected Member Methods
+  bool SaveConfig();
+
+
+};
+
 
 class GPIO {
 public:
