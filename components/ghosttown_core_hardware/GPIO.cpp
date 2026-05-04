@@ -6,6 +6,9 @@ std::vector<GpioJob> GPIO::m_jobs;
 SemaphoreHandle_t GPIO::m_mutex = nullptr;
 TaskHandle_t GPIO::m_workerHandle = nullptr;
 bool GPIO::m_isWorkerRunning = false;
+QueueHandle_t GPIO::m_interruptQueue = nullptr;
+TaskHandle_t GPIO::m_interruptWorkerHandle = nullptr;
+bool GPIO::m_isInterruptWorkerRunning = false;
 
 GPIO::GPIO() {
   if (m_mutex == nullptr) {
@@ -146,6 +149,103 @@ bool GPIO::IsJobReady(const GpioJob& job, uint64_t nowUs) {
   const bool isConditionReady = job.condition == nullptr || job.condition() == false;
 
   return isTimeReady && isConditionReady;
+}
+
+bool GPIO::AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*), void* argument) {
+  if (m_pin == 255 || callback == nullptr) {
+    return false;
+  }
+
+  m_interruptCallback = callback;
+  m_interruptArgument = argument;
+
+  gpio_set_intr_type(static_cast<gpio_num_t>(m_pin), interruptType);
+
+  if (m_interruptQueue == nullptr) {
+    m_interruptQueue = xQueueCreate(32, sizeof(GpioInterruptJob));
+  }
+
+  if (m_interruptWorkerHandle == nullptr) {
+    m_isInterruptWorkerRunning = true;
+
+    if (xTaskCreatePinnedToCore(
+          InterruptWorkerTask,
+          "GpioInterruptWorker",
+          4096,
+          nullptr,
+          12,
+          &m_interruptWorkerHandle,
+          1
+        ) != pdPASS) {
+      return false;
+    }
+  }
+
+  esp_err_t result = gpio_install_isr_service(0);
+
+  if (result != ESP_OK && result != ESP_ERR_INVALID_STATE) {
+    return false;
+  }
+
+  result = gpio_isr_handler_add(
+    static_cast<gpio_num_t>(m_pin),
+    InterruptHandler,
+    this
+  );
+
+  if (result != ESP_OK) {
+    return false;
+  }
+
+  m_hasAttachedInterrupt = true;
+  return true;
+}
+
+bool GPIO::DetachInterrupt() {
+  if (m_pin == 255 || !m_hasAttachedInterrupt) {
+    return false;
+  }
+
+  gpio_isr_handler_remove(static_cast<gpio_num_t>(m_pin));
+  m_hasAttachedInterrupt = false;
+
+  return true;
+}
+
+void IRAM_ATTR GPIO::InterruptHandler(void* argument) {
+  GPIO* gpio = static_cast<GPIO*>(argument);
+
+  if (gpio == nullptr || m_interruptQueue == nullptr) {
+    return;
+  }
+
+  GpioInterruptJob job;
+  job.pin = gpio->m_pin;
+  job.owner = gpio;
+
+  BaseType_t hasHigherPriorityTaskWoken = pdFALSE;
+  xQueueSendFromISR(m_interruptQueue, &job, &hasHigherPriorityTaskWoken);
+
+  if (hasHigherPriorityTaskWoken == pdTRUE) {
+    portYIELD_FROM_ISR();
+  }
+}
+
+void GPIO::InterruptWorkerTask(void* parameter) {
+  GpioInterruptJob job;
+
+  while (m_isInterruptWorkerRunning) {
+    if (xQueueReceive(m_interruptQueue, &job, portMAX_DELAY) == pdTRUE) {
+      GPIO* gpio = static_cast<GPIO*>(job.owner);
+
+      if (gpio != nullptr && gpio->m_interruptCallback != nullptr) {
+        gpio->m_interruptCallback(gpio->m_interruptArgument);
+      }
+    }
+  }
+
+  m_interruptWorkerHandle = nullptr;
+  vTaskDelete(nullptr);
 }
 
 void GPIO::WorkerTask(void* parameter) {

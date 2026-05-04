@@ -31,6 +31,11 @@ struct GpioJob {
   void* owner = nullptr;
 };
 
+struct GpioInterruptJob {
+  uint8_t pin = 0;
+  void* owner = nullptr;
+};
+
 class GPIO {
 public:
   GPIO();
@@ -54,6 +59,22 @@ public:
 
   static bool StartWorker(BaseType_t coreId = 1, UBaseType_t priority = 10);
   static void StopWorker();
+
+  bool AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*), void* argument = nullptr);
+  bool DetachInterrupt();
+
+private:
+  static void IRAM_ATTR InterruptHandler(void* argument);
+  static void InterruptWorkerTask(void* parameter);
+
+private:
+  void (*m_interruptCallback)(void*) = nullptr;
+  void* m_interruptArgument = nullptr;
+  bool m_hasAttachedInterrupt = false;
+
+  static QueueHandle_t m_interruptQueue;
+  static TaskHandle_t m_interruptWorkerHandle;
+  static bool m_isInterruptWorkerRunning;
 
 private:
   static void WorkerTask(void* parameter);
