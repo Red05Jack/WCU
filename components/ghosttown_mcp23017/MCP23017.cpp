@@ -158,6 +158,23 @@ bool MCP23017::GetAllPins(std::array<bool, 16>& states) {
   return true;
 }
 
+bool MCP23017::SetPullUp(uint8_t pin, bool enabled) {
+  if (!m_isInitialized || !IsValidPin(pin)) {
+    return false;
+  }
+
+  uint8_t* pullUpRegister = pin < 8 ? &m_pullUpA : &m_pullUpB;
+  const uint8_t bit = pin % 8;
+
+  if (enabled) {
+    *pullUpRegister |= (1 << bit);
+  } else {
+    *pullUpRegister &= ~(1 << bit);
+  }
+
+  return WriteRegister(pin < 8 ? RegisterGppuA : RegisterGppuB, *pullUpRegister);
+}
+
 bool MCP23017::WriteRegister(uint8_t reg, uint8_t value) {
   if (m_i2c == nullptr) {
     return false;

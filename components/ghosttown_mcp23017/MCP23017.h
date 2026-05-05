@@ -32,6 +32,8 @@ public:
   bool GetPin(uint8_t pin, bool& state);
   bool GetAllPins(std::array<bool, 16>& states);
 
+  bool SetPullUp(uint8_t pin, bool enabled);
+
 private:
   static constexpr uint8_t RegisterIodirA = 0x00;
   static constexpr uint8_t RegisterIodirB = 0x01;
@@ -39,6 +41,9 @@ private:
   static constexpr uint8_t RegisterGpioB = 0x13;
   static constexpr uint8_t RegisterOlatA = 0x14;
   static constexpr uint8_t RegisterOlatB = 0x15;
+
+  static constexpr uint8_t RegisterGppuA = 0x0C;
+static constexpr uint8_t RegisterGppuB = 0x0D;
 
   bool WriteRegister(uint8_t reg, uint8_t value);
   bool ReadRegister(uint8_t reg, uint8_t& value);
@@ -56,4 +61,7 @@ private:
   uint8_t m_outputB = 0x00;
 
   bool m_isInitialized = false;
+
+  uint8_t m_pullUpA = 0x00;
+uint8_t m_pullUpB = 0x00;
 };
