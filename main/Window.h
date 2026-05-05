@@ -1,35 +1,57 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include "DigitalPin.h"
 #include "State.h"
 
-
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 struct WindowConfig {
-  uint8_t statePos;
+  uint8_t statePos = 0;
 
-  uint8_t timeOpenHighPos;
-  uint8_t timeOpenLowPos;
-  uint8_t timeCloseHighPos;
-  uint8_t timeCloseLowPos;
- 
-  State& state;
+  uint8_t timeOpenHighPos = 1;
+  uint8_t timeOpenLowPos = 2;
+  uint8_t timeCloseHighPos = 3;
+  uint8_t timeCloseLowPos = 4;
+
+  State* state = nullptr;
 };
 
+enum class WindowDirection : uint8_t {
+  Stop,
+  Open,
+  Close
+};
 
 class Window {
 public:
   Window();
-  Window() = default;
 
+  Window(
+    const WindowConfig& config,
+    std::shared_ptr<DigitalPin> buttonOpen,
+    std::shared_ptr<DigitalPin> buttonOpenAll,
+    std::shared_ptr<DigitalPin> buttonClose,
+    std::shared_ptr<DigitalPin> buttonCloseAll,
+    std::shared_ptr<DigitalPin> motorA,
+    std::shared_ptr<DigitalPin> motorB
+  );
 
+  bool Init(
+    const WindowConfig& config,
+    std::shared_ptr<DigitalPin> buttonOpen,
+    std::shared_ptr<DigitalPin> buttonOpenAll,
+    std::shared_ptr<DigitalPin> buttonClose,
+    std::shared_ptr<DigitalPin> buttonCloseAll,
+    std::shared_ptr<DigitalPin> motorA,
+    std::shared_ptr<DigitalPin> motorB
+  );
 
-  void StartWindow(); // Init
+  bool StartWindow();
   void StopWindow();
-
-
 
   void StartOpen();
   void StartClose();
@@ -39,26 +61,43 @@ public:
   void OpenAll();
   void CloseAll();
 
-  void Toogle();
+  void Toggle();
 
+  uint32_t GetTimeOpen();
+  uint32_t GetTimeClose();
 
-  uint32_t GetTimeOpen(); //ms
-  uint32_t GetTimeClose(); //ms
-
-  uint8_t GetCurrentState(); //0-255
+  uint8_t GetCurrentState();
   bool SetCurrentState(uint8_t state);
 
   bool CalibrateWindows();
 
+private:
+  static void ButtonOpenInterrupt(void* argument);
+  static void ButtonOpenAllInterrupt(void* argument);
+  static void ButtonCloseInterrupt(void* argument);
+  static void ButtonCloseAllInterrupt(void* argument);
+
+  static void WorkerTask(void* argument);
+
+  void HandleButtonOpen();
+  void HandleButtonOpenAll();
+  void HandleButtonClose();
+  void HandleButtonCloseAll();
+
+  void StartMove(WindowDirection direction, bool moveAll);
+  void StopInternal(bool savePosition);
+
+  bool SetTimeOpen(uint32_t timeMs);
+  bool SetTimeClose(uint32_t timeMs);
+
+  uint32_t GetRemainingOpenTime();
+  uint32_t GetRemainingCloseTime();
+
+  void UpdateStateFromElapsedTime();
+  void SetMotors(bool motorAState, bool motorBState);
 
 private:
-
-  bool SetTimeOpen(uint32_t time); //ms
-  bool SetTimeClose(uint32_t time);
-
-
-
-
+  WindowConfig m_config = {};
 
   std::shared_ptr<DigitalPin> m_buttonOpen;
   std::shared_ptr<DigitalPin> m_buttonOpenAll;
@@ -68,12 +107,14 @@ private:
   std::shared_ptr<DigitalPin> m_motorA;
   std::shared_ptr<DigitalPin> m_motorB;
 
+  TaskHandle_t m_workerHandle = nullptr;
 
+  bool m_isRunning = false;
+  bool m_isInitialized = false;
 
+  WindowDirection m_direction = WindowDirection::Stop;
 
-  
-  WindowConfig config;
-
-
-
-}
+  uint64_t m_moveStartUs = 0;
+  uint32_t m_moveDurationMs = 0;
+  uint8_t m_startState = 0;
+};
