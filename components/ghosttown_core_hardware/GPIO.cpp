@@ -2,10 +2,52 @@
 
 #include <algorithm>
 
+class GpioDigitalPin : public DigitalPin {
+public:
+  explicit GpioDigitalPin(GPIO& parent)
+    : m_parent(parent) {
+  }
+
+  bool Set(bool state) override {
+    return m_parent.Set(state);
+  }
+
+  bool Get(bool& state) override {
+    const int value = m_parent.Get();
+
+    if (value < 0) {
+      return false;
+    }
+
+    state = value != 0;
+    return true;
+  }
+
+  bool SetMode(bool isOutput) override {
+    return m_parent.SetMode(isOutput ? GpioMode::Output : GpioMode::Input);
+  }
+
+  bool SetPullUp(bool enabled) override {
+    return m_parent.SetPullMode(enabled ? GpioPullMode::PullUp : GpioPullMode::None);
+  }
+
+  bool AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*), void* argument = nullptr) override {
+    return m_parent.AttachInterrupt(interruptType, callback, argument);
+  }
+
+  bool DetachInterrupt() override {
+    return m_parent.DetachInterrupt();
+  }
+
+private:
+  GPIO& m_parent;
+};
+
 std::vector<GpioJob> GPIO::m_jobs;
 SemaphoreHandle_t GPIO::m_mutex = nullptr;
 TaskHandle_t GPIO::m_workerHandle = nullptr;
 bool GPIO::m_isWorkerRunning = false;
+
 QueueHandle_t GPIO::m_interruptQueue = nullptr;
 TaskHandle_t GPIO::m_interruptWorkerHandle = nullptr;
 bool GPIO::m_isInterruptWorkerRunning = false;
@@ -14,6 +56,8 @@ GPIO::GPIO() {
   if (m_mutex == nullptr) {
     m_mutex = xSemaphoreCreateMutex();
   }
+
+  m_pinObject = std::make_shared<GpioDigitalPin>(*this);
 }
 
 GPIO::GPIO(uint8_t pin, GpioMode mode, GpioPullMode pullMode, bool hasInterrupts)
@@ -26,7 +70,12 @@ GPIO::GPIO(uint8_t pin, GpioMode mode, GpioPullMode pullMode, bool hasInterrupts
 }
 
 GPIO::~GPIO() {
+  DetachInterrupt();
   ClearQueueEntries();
+}
+
+std::shared_ptr<DigitalPin> GPIO::GetPinObject() {
+  return m_pinObject;
 }
 
 bool GPIO::SetPin(uint8_t pin) {
@@ -132,25 +181,6 @@ bool GPIO::SaveConfig() {
   return gpio_config(&m_config) == ESP_OK;
 }
 
-bool GPIO::PushJob(const GpioJob& job) {
-  if (m_mutex == nullptr || job.pin == 255) {
-    return false;
-  }
-
-  xSemaphoreTake(m_mutex, portMAX_DELAY);
-  m_jobs.push_back(job);
-  xSemaphoreGive(m_mutex);
-
-  return true;
-}
-
-bool GPIO::IsJobReady(const GpioJob& job, uint64_t nowUs) {
-  const bool isTimeReady = job.timestampUs == 0 || nowUs >= job.timestampUs;
-  const bool isConditionReady = job.condition == nullptr || job.condition() == false;
-
-  return isTimeReady && isConditionReady;
-}
-
 bool GPIO::AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*), void* argument) {
   if (m_pin == 255 || callback == nullptr) {
     return false;
@@ -159,10 +189,16 @@ bool GPIO::AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*
   m_interruptCallback = callback;
   m_interruptArgument = argument;
 
-  gpio_set_intr_type(static_cast<gpio_num_t>(m_pin), interruptType);
+  if (gpio_set_intr_type(static_cast<gpio_num_t>(m_pin), interruptType) != ESP_OK) {
+    return false;
+  }
 
   if (m_interruptQueue == nullptr) {
     m_interruptQueue = xQueueCreate(32, sizeof(GpioInterruptJob));
+
+    if (m_interruptQueue == nullptr) {
+      return false;
+    }
   }
 
   if (m_interruptWorkerHandle == nullptr) {
@@ -177,6 +213,7 @@ bool GPIO::AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*
           &m_interruptWorkerHandle,
           1
         ) != pdPASS) {
+      m_isInterruptWorkerRunning = false;
       return false;
     }
   }
@@ -246,6 +283,25 @@ void GPIO::InterruptWorkerTask(void* parameter) {
 
   m_interruptWorkerHandle = nullptr;
   vTaskDelete(nullptr);
+}
+
+bool GPIO::PushJob(const GpioJob& job) {
+  if (m_mutex == nullptr || job.pin == 255) {
+    return false;
+  }
+
+  xSemaphoreTake(m_mutex, portMAX_DELAY);
+  m_jobs.push_back(job);
+  xSemaphoreGive(m_mutex);
+
+  return true;
+}
+
+bool GPIO::IsJobReady(const GpioJob& job, uint64_t nowUs) {
+  const bool isTimeReady = job.timestampUs == 0 || nowUs >= job.timestampUs;
+  const bool isConditionReady = job.condition == nullptr || job.condition() == false;
+
+  return isTimeReady && isConditionReady;
 }
 
 void GPIO::WorkerTask(void* parameter) {

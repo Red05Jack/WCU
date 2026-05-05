@@ -1,5 +1,44 @@
 #include "MCP23017.h"
 
+class Mcp23017DigitalPin : public DigitalPin {
+public:
+  Mcp23017DigitalPin(MCP23017& parent, uint8_t pin)
+    : m_parent(parent),
+      m_pin(pin) {
+  }
+
+  bool Set(bool state) override {
+    return m_parent.SetPin(m_pin, state);
+  }
+
+  bool Get(bool& state) override {
+    return m_parent.GetPin(m_pin, state);
+  }
+
+  bool SetMode(bool isOutput) override {
+    return m_parent.InitPin(
+      m_pin,
+      isOutput ? Mcp23017PinMode::Output : Mcp23017PinMode::Input
+    );
+  }
+
+  bool SetPullUp(bool enabled) override {
+    return m_parent.SetPullUp(m_pin, enabled);
+  }
+
+  bool AttachInterrupt(gpio_int_type_t interruptType, void (*callback)(void*), void* argument = nullptr) override {
+    return false;
+  }
+
+  bool DetachInterrupt() override {
+    return false;
+  }
+
+private:
+  MCP23017& m_parent;
+  uint8_t m_pin = 0;
+};
+
 MCP23017::MCP23017() {
 }
 
@@ -17,14 +56,26 @@ bool MCP23017::Init(I2C* i2c, uint8_t address) {
 
   m_directionA = 0xFF;
   m_directionB = 0xFF;
+
   m_outputA = 0x00;
   m_outputB = 0x00;
+
+  m_pullUpA = 0x00;
+  m_pullUpB = 0x00;
 
   if (!WriteRegister(RegisterIodirA, m_directionA)) {
     return false;
   }
 
   if (!WriteRegister(RegisterIodirB, m_directionB)) {
+    return false;
+  }
+
+  if (!WriteRegister(RegisterGppuA, m_pullUpA)) {
+    return false;
+  }
+
+  if (!WriteRegister(RegisterGppuB, m_pullUpB)) {
     return false;
   }
 
@@ -36,8 +87,24 @@ bool MCP23017::Init(I2C* i2c, uint8_t address) {
     return false;
   }
 
+  for (uint8_t i = 0; i < 16; i++) {
+    m_pinObjects[i] = std::make_shared<Mcp23017DigitalPin>(*this, i);
+  }
+
   m_isInitialized = true;
   return true;
+}
+
+std::shared_ptr<DigitalPin> MCP23017::GetPinObject(uint8_t pin) {
+  if (!IsValidPin(pin)) {
+    return nullptr;
+  }
+
+  if (m_pinObjects[pin] == nullptr) {
+    m_pinObjects[pin] = std::make_shared<Mcp23017DigitalPin>(*this, pin);
+  }
+
+  return m_pinObjects[pin];
 }
 
 bool MCP23017::InitPin(uint8_t pin, Mcp23017PinMode mode) {
