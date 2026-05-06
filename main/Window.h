@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 #include "DigitalPin.h"
 #include "State.h"
@@ -26,28 +27,47 @@ enum class WindowDirection : uint8_t {
   Close
 };
 
+enum class WindowAction : uint8_t {
+  Open,
+  OpenAll,
+  Close,
+  CloseAll,
+  Toggle
+};
+
+struct WindowInput {
+  WindowAction action = WindowAction::Toggle;
+  std::shared_ptr<DigitalPin> button = nullptr;
+
+  std::shared_ptr<DigitalPin> powerWindowLock = nullptr;
+
+  bool buttonActiveState = false;      // Pull-up button: pressed = false
+  bool powerLockActiveState = true;    // Lock active when pin reads true
+  bool lastButtonState = true;
+};
+
 class Window {
 public:
   Window();
 
   Window(
     const WindowConfig& config,
-    std::shared_ptr<DigitalPin> buttonOpen,
-    std::shared_ptr<DigitalPin> buttonOpenAll,
-    std::shared_ptr<DigitalPin> buttonClose,
-    std::shared_ptr<DigitalPin> buttonCloseAll,
-    std::shared_ptr<DigitalPin> motorA,
-    std::shared_ptr<DigitalPin> motorB
+    std::shared_ptr<DigitalPin> motorOpen,
+    std::shared_ptr<DigitalPin> motorClose
   );
 
   bool Init(
     const WindowConfig& config,
-    std::shared_ptr<DigitalPin> buttonOpen,
-    std::shared_ptr<DigitalPin> buttonOpenAll,
-    std::shared_ptr<DigitalPin> buttonClose,
-    std::shared_ptr<DigitalPin> buttonCloseAll,
-    std::shared_ptr<DigitalPin> motorA,
-    std::shared_ptr<DigitalPin> motorB
+    std::shared_ptr<DigitalPin> motorOpen,
+    std::shared_ptr<DigitalPin> motorClose
+  );
+
+  bool AddInput(
+    WindowAction action,
+    std::shared_ptr<DigitalPin> button,
+    std::shared_ptr<DigitalPin> powerWindowLock = nullptr,
+    bool buttonActiveState = false,
+    bool powerLockActiveState = true
   );
 
   bool StartWindow();
@@ -71,18 +91,23 @@ public:
 
   bool CalibrateWindows();
 
-private:
-  static void ButtonOpenInterrupt(void* argument);
-  static void ButtonOpenAllInterrupt(void* argument);
-  static void ButtonCloseInterrupt(void* argument);
-  static void ButtonCloseAllInterrupt(void* argument);
+  bool IsMoving() const;
+  WindowDirection GetDirection() const;
 
+private:
+  struct CallbackContext {
+    Window* window = nullptr;
+    size_t inputIndex = 0;
+  };
+
+  static void InputInterrupt(void* argument);
   static void WorkerTask(void* argument);
 
-  void HandleButtonOpen();
-  void HandleButtonOpenAll();
-  void HandleButtonClose();
-  void HandleButtonCloseAll();
+  void HandleInput(size_t inputIndex);
+  bool IsInputLocked(const WindowInput& input);
+  bool IsInputPressed(WindowInput& input);
+
+  void ExecuteAction(WindowAction action, bool isPressed, bool wasPressed);
 
   void StartMove(WindowDirection direction, bool moveAll);
   void StopInternal(bool savePosition);
@@ -94,18 +119,16 @@ private:
   uint32_t GetRemainingCloseTime();
 
   void UpdateStateFromElapsedTime();
-  void SetMotors(bool motorAState, bool motorBState);
+  void SetMotors(bool motorOpenState, bool motorCloseState);
 
 private:
   WindowConfig m_config = {};
 
-  std::shared_ptr<DigitalPin> m_buttonOpen;
-  std::shared_ptr<DigitalPin> m_buttonOpenAll;
-  std::shared_ptr<DigitalPin> m_buttonClose;
-  std::shared_ptr<DigitalPin> m_buttonCloseAll;
+  std::shared_ptr<DigitalPin> m_motorOpen;
+  std::shared_ptr<DigitalPin> m_motorClose;
 
-  std::shared_ptr<DigitalPin> m_motorA;
-  std::shared_ptr<DigitalPin> m_motorB;
+  std::vector<WindowInput> m_inputs;
+  std::vector<CallbackContext> m_callbackContexts;
 
   TaskHandle_t m_workerHandle = nullptr;
 

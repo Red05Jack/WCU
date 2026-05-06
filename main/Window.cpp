@@ -7,63 +7,70 @@ Window::Window() {
 
 Window::Window(
   const WindowConfig& config,
-  std::shared_ptr<DigitalPin> buttonOpen,
-  std::shared_ptr<DigitalPin> buttonOpenAll,
-  std::shared_ptr<DigitalPin> buttonClose,
-  std::shared_ptr<DigitalPin> buttonCloseAll,
-  std::shared_ptr<DigitalPin> motorA,
-  std::shared_ptr<DigitalPin> motorB
+  std::shared_ptr<DigitalPin> motorOpen,
+  std::shared_ptr<DigitalPin> motorClose
 ) {
-  Init(config, buttonOpen, buttonOpenAll, buttonClose, buttonCloseAll, motorA, motorB);
+  Init(config, motorOpen, motorClose);
 }
 
 bool Window::Init(
   const WindowConfig& config,
-  std::shared_ptr<DigitalPin> buttonOpen,
-  std::shared_ptr<DigitalPin> buttonOpenAll,
-  std::shared_ptr<DigitalPin> buttonClose,
-  std::shared_ptr<DigitalPin> buttonCloseAll,
-  std::shared_ptr<DigitalPin> motorA,
-  std::shared_ptr<DigitalPin> motorB
+  std::shared_ptr<DigitalPin> motorOpen,
+  std::shared_ptr<DigitalPin> motorClose
 ) {
-  if (
-    config.state == nullptr ||
-    buttonOpen == nullptr ||
-    buttonOpenAll == nullptr ||
-    buttonClose == nullptr ||
-    buttonCloseAll == nullptr ||
-    motorA == nullptr ||
-    motorB == nullptr
-  ) {
+  if (config.state == nullptr || motorOpen == nullptr || motorClose == nullptr) {
     return false;
   }
 
   m_config = config;
+  m_motorOpen = motorOpen;
+  m_motorClose = motorClose;
 
-  m_buttonOpen = buttonOpen;
-  m_buttonOpenAll = buttonOpenAll;
-  m_buttonClose = buttonClose;
-  m_buttonCloseAll = buttonCloseAll;
-
-  m_motorA = motorA;
-  m_motorB = motorB;
-
-  m_buttonOpen->SetMode(false);
-  m_buttonOpenAll->SetMode(false);
-  m_buttonClose->SetMode(false);
-  m_buttonCloseAll->SetMode(false);
-
-  m_buttonOpen->SetPullUp(true);
-  m_buttonOpenAll->SetPullUp(true);
-  m_buttonClose->SetPullUp(true);
-  m_buttonCloseAll->SetPullUp(true);
-
-  m_motorA->SetMode(true);
-  m_motorB->SetMode(true);
+  m_motorOpen->SetMode(true);
+  m_motorClose->SetMode(true);
 
   SetMotors(false, false);
 
   m_isInitialized = true;
+  return true;
+}
+
+bool Window::AddInput(
+  WindowAction action,
+  std::shared_ptr<DigitalPin> button,
+  std::shared_ptr<DigitalPin> powerWindowLock,
+  bool buttonActiveState,
+  bool powerLockActiveState
+) {
+  if (button == nullptr) {
+    return false;
+  }
+
+  WindowInput input;
+  input.action = action;
+  input.button = button;
+  input.powerWindowLock = powerWindowLock;
+  input.buttonActiveState = buttonActiveState;
+  input.powerLockActiveState = powerLockActiveState;
+
+  input.button->SetMode(false);
+  input.button->SetPullUp(true);
+
+  if (input.powerWindowLock != nullptr) {
+    input.powerWindowLock->SetMode(false);
+    input.powerWindowLock->SetPullUp(true);
+  }
+
+  input.button->Get(input.lastButtonState);
+
+  m_inputs.push_back(input);
+
+  CallbackContext context;
+  context.window = this;
+  context.inputIndex = m_inputs.size() - 1;
+
+  m_callbackContexts.push_back(context);
+
   return true;
 }
 
@@ -74,10 +81,13 @@ bool Window::StartWindow() {
 
   m_isRunning = true;
 
-  m_buttonOpen->AttachInterrupt(GPIO_INTR_ANYEDGE, ButtonOpenInterrupt, this);
-  m_buttonOpenAll->AttachInterrupt(GPIO_INTR_NEGEDGE, ButtonOpenAllInterrupt, this);
-  m_buttonClose->AttachInterrupt(GPIO_INTR_ANYEDGE, ButtonCloseInterrupt, this);
-  m_buttonCloseAll->AttachInterrupt(GPIO_INTR_NEGEDGE, ButtonCloseAllInterrupt, this);
+  for (size_t i = 0; i < m_inputs.size(); i++) {
+    m_inputs[i].button->AttachInterrupt(
+      GPIO_INTR_ANYEDGE,
+      InputInterrupt,
+      &m_callbackContexts[i]
+    );
+  }
 
   if (m_workerHandle == nullptr) {
     return xTaskCreatePinnedToCore(
@@ -97,10 +107,11 @@ bool Window::StartWindow() {
 void Window::StopWindow() {
   m_isRunning = false;
 
-  m_buttonOpen->DetachInterrupt();
-  m_buttonOpenAll->DetachInterrupt();
-  m_buttonClose->DetachInterrupt();
-  m_buttonCloseAll->DetachInterrupt();
+  for (WindowInput& input : m_inputs) {
+    if (input.button != nullptr) {
+      input.button->DetachInterrupt();
+    }
+  }
 
   Stop();
 }
@@ -122,15 +133,16 @@ void Window::CloseAll() {
 }
 
 void Window::Toggle() {
+  if (m_direction != WindowDirection::Stop) {
+    Stop();
+    return;
+  }
+
   if (GetCurrentState() < 128) {
     OpenAll();
   } else {
     CloseAll();
   }
-}
-
-void Window::Stop() {
-  StopInternal(true);
 }
 
 uint32_t Window::GetTimeOpen() {
@@ -162,6 +174,14 @@ bool Window::CalibrateWindows() {
   SetCurrentState(0);
 
   return isOpenSet && isCloseSet;
+}
+
+bool Window::IsMoving() const {
+  return m_direction != WindowDirection::Stop;
+}
+
+WindowDirection Window::GetDirection() const {
+  return m_direction;
 }
 
 bool Window::SetTimeOpen(uint32_t timeMs) {
@@ -234,6 +254,10 @@ void Window::StartMove(WindowDirection direction, bool moveAll) {
   }
 }
 
+void Window::Stop() {
+  StopInternal(true);
+}
+
 void Window::StopInternal(bool savePosition) {
   if (savePosition) {
     UpdateStateFromElapsedTime();
@@ -282,84 +306,117 @@ void Window::UpdateStateFromElapsedTime() {
   SetCurrentState(newState);
 }
 
-void Window::SetMotors(bool motorAState, bool motorBState) {
-  if (motorAState && motorBState) {
-    motorAState = false;
-    motorBState = false;
+void Window::SetMotors(bool motorOpenState, bool motorCloseState) {
+  if (motorOpenState && motorCloseState) {
+    motorOpenState = false;
+    motorCloseState = false;
   }
 
-  m_motorA->Set(motorAState);
-  m_motorB->Set(motorBState);
+  m_motorOpen->Set(motorOpenState);
+  m_motorClose->Set(motorCloseState);
 }
 
-void Window::HandleButtonOpen() {
-  bool raw = true;
-  m_buttonOpen->Get(raw);
+bool Window::IsInputLocked(const WindowInput& input) {
+  if (input.powerWindowLock == nullptr) {
+    return false;
+  }
 
-  if (!raw) {
-    StartOpen();
-  } else if (m_direction == WindowDirection::Open) {
-    Stop();
+  bool lockState = false;
+
+  if (!input.powerWindowLock->Get(lockState)) {
+    return true;
+  }
+
+  return lockState == input.powerLockActiveState;
+}
+
+bool Window::IsInputPressed(WindowInput& input) {
+  bool state = true;
+
+  if (!input.button->Get(state)) {
+    return false;
+  }
+
+  return state == input.buttonActiveState;
+}
+
+void Window::ExecuteAction(WindowAction action, bool isPressed, bool wasPressed) {
+  switch (action) {
+    case WindowAction::Open:
+      if (isPressed && !wasPressed) {
+        StartOpen();
+      }
+
+      if (!isPressed && wasPressed && m_direction == WindowDirection::Open) {
+        Stop();
+      }
+      break;
+
+    case WindowAction::Close:
+      if (isPressed && !wasPressed) {
+        StartClose();
+      }
+
+      if (!isPressed && wasPressed && m_direction == WindowDirection::Close) {
+        Stop();
+      }
+      break;
+
+    case WindowAction::OpenAll:
+      if (isPressed && !wasPressed) {
+        if (m_direction == WindowDirection::Open) {
+          Stop();
+        } else {
+          OpenAll();
+        }
+      }
+      break;
+
+    case WindowAction::CloseAll:
+      if (isPressed && !wasPressed) {
+        if (m_direction == WindowDirection::Close) {
+          Stop();
+        } else {
+          CloseAll();
+        }
+      }
+      break;
+
+    case WindowAction::Toggle:
+      if (isPressed && !wasPressed) {
+        Toggle();
+      }
+      break;
   }
 }
 
-void Window::HandleButtonOpenAll() {
-  if (m_direction == WindowDirection::Open) {
-    Stop();
-  } else {
-    OpenAll();
+void Window::HandleInput(size_t inputIndex) {
+  if (inputIndex >= m_inputs.size()) {
+    return;
   }
+
+  WindowInput& input = m_inputs[inputIndex];
+
+  const bool wasPressed = input.lastButtonState == input.buttonActiveState;
+  const bool isPressed = IsInputPressed(input);
+
+  input.lastButtonState = isPressed ? input.buttonActiveState : !input.buttonActiveState;
+
+  if (IsInputLocked(input)) {
+    return;
+  }
+
+  ExecuteAction(input.action, isPressed, wasPressed);
 }
 
-void Window::HandleButtonClose() {
-  bool raw = true;
-  m_buttonClose->Get(raw);
+void Window::InputInterrupt(void* argument) {
+  CallbackContext* context = static_cast<CallbackContext*>(argument);
 
-  if (!raw) {
-    StartClose();
-  } else if (m_direction == WindowDirection::Close) {
-    Stop();
+  if (context == nullptr || context->window == nullptr) {
+    return;
   }
-}
 
-void Window::HandleButtonCloseAll() {
-  if (m_direction == WindowDirection::Close) {
-    Stop();
-  } else {
-    CloseAll();
-  }
-}
-
-void Window::ButtonOpenInterrupt(void* argument) {
-  Window* window = static_cast<Window*>(argument);
-
-  if (window != nullptr) {
-    window->HandleButtonOpen();
-  }
-}
-
-void Window::ButtonOpenAllInterrupt(void* argument) {
-  Window* window = static_cast<Window*>(argument);
-
-  if (window != nullptr) {
-    window->HandleButtonOpenAll();
-  }
-}
-
-void Window::ButtonCloseInterrupt(void* argument) {
-  Window* window = static_cast<Window*>(argument);
-
-  if (window != nullptr) {
-    window->HandleButtonClose();
-  }
-}
-
-void Window::ButtonCloseAllInterrupt(void* argument) {
-  Window* window = static_cast<Window*>(argument);
-
-  if (window != nullptr) {
-    window->HandleButtonCloseAll();
-  }
+  context->window->HandleInput(context->inputIndex);
 }
 
 void Window::WorkerTask(void* argument) {
